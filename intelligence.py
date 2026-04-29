@@ -344,9 +344,9 @@ def create_benchmark_radar_chart(df: pd.DataFrame, target_branch: str, top_peers
     
     # Close the loop for the radar plot
     theta       = ALL_VARS + [ALL_VARS[0]]
-    r_target    = target_norm.tolist() + [target_norm[0]]
-    r_peer      = peer_norm.tolist() + [peer_norm[0]]
-    r_fleet     = fleet_norm.tolist() + [fleet_norm[0]]
+    r_target    = target_norm.tolist() + [target_norm.iloc[0]]
+    r_peer      = peer_norm.tolist() + [peer_norm.iloc[0]]
+    r_fleet     = fleet_norm.tolist() + [fleet_norm.iloc[0]]
     
     fig = go.Figure()
     
