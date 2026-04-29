@@ -243,6 +243,7 @@ def simulate_branch(
     """
     # ── build normalised arrays (same as dea_model.py) ──────────────────────
     work = df[["Branch"] + INPUT_COLS + OUTPUT_COLS].dropna().copy()
+    work[INPUT_COLS + OUTPUT_COLS] = work[INPUT_COLS + OUTPUT_COLS].astype(float)
     idx  = work[work["Branch"] == branch].index
 
     if len(idx) == 0:
