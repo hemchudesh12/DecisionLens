@@ -1214,13 +1214,24 @@ with tab_sim:
                 staff_m = opcost_m = dep_m = grw_m = avg_m = 1.0
         else:
             target_score = None
+            
+            # Fetch recommended slack adjustments as defaults
+            sr = slack_df[slack_df["Branch"] == selected_branch]
+            sr = sr.iloc[0] if len(sr) > 0 else pd.Series()
+            
+            def_staff = max(-100, min(int(-sr.get("Pct_Reduce_Staff", 0)), 0))
+            def_opcost = max(-100, min(int(-sr.get("Pct_Reduce_OpCost", 0)), 0))
+            def_dep = min(200, max(int(sr.get("Pct_Increase_Dep2016", 0)), 0))
+            def_grw = min(200, max(int(sr.get("Pct_Increase_Growth", 0)), 0))
+            def_avg = min(200, max(int(sr.get("Pct_Increase_AvgDep", 0)), 0))
+
             st.markdown("**Input Adjustments** (reduce → improve efficiency)")
-            staff_pct  = st.slider("Staff (%)",          -50, 50, 0, 1, format="%+d%%")
-            opcost_pct = st.slider("Operating Cost (%)", -50, 50, 0, 1, format="%+d%%")
+            staff_pct  = st.slider("Staff (%)",          -100, 100, def_staff, 1, format="%+d%%")
+            opcost_pct = st.slider("Operating Cost (%)", -100, 100, def_opcost, 1, format="%+d%%")
             st.markdown("**Output Adjustments** (increase → improve efficiency)")
-            dep_pct   = st.slider("Deposits 2016 (%)",   -50, 50, 0, 1, format="%+d%%")
-            grw_pct   = st.slider("Deposit Growth (%)",  -50, 50, 0, 1, format="%+d%%")
-            avg_pct   = st.slider("Avg Deposits (%)",    -50, 50, 0, 1, format="%+d%%")
+            dep_pct   = st.slider("Deposits 2016 (%)",   -100, 200, def_dep, 1, format="%+d%%")
+            grw_pct   = st.slider("Deposit Growth (%)",  -100, 200, def_grw, 1, format="%+d%%")
+            avg_pct   = st.slider("Avg Deposits (%)",    -100, 200, def_avg, 1, format="%+d%%")
             staff_m   = 1 + staff_pct  / 100
             opcost_m  = 1 + opcost_pct / 100
             dep_m     = 1 + dep_pct    / 100
