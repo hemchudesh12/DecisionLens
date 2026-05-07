@@ -1,58 +1,207 @@
-# DecisionLens Working Process & Analytical Methodology
+# 🔍 DecisionLens — Bank Branch Efficiency BI Platform
 
-This document explains the mathematical workflow of how the application evaluates branch efficiency and outlines the specific features available within the interactive Business Intelligence dashboard.
+> A production-grade Business Intelligence platform that applies **Data Envelopment Analysis (DEA)** to evaluate, visualize, and simulate the operational efficiency of bank branches across an entire network.
 
----
-
-## 1. How Efficiency is Calculated
-
-The system employs **Data Envelopment Analysis (DEA)**, a rigorous operations research technique, specifically using the **CCR (Charnes-Cooper-Rhodes) Input-Oriented model** solved via Linear Programming.
-
-### The Variables
-- **Inputs (Resources consumed):** Staff count, Operating Cost.
-- **Outputs (Results produced):** Deposits 2016, Deposit Growth, Average Deposits.
-
-### The Mathematical Process
-1. **Normalization:** The model first normalizes all input and output columns across the dataset so that large monetary values (like deposits) do not mathematically overshadow smaller integer metrics (like staff members).
-2. **Linear Programming:** For every single branch (Decision-Making Unit or DMU), the system formulates a targeted linear programming problem using the `PuLP` library. 
-3. **Weight Optimization:** The solver computationally determines the most favorable possible weights for that specific branch's inputs and outputs. It attempts to maximize the branch's efficiency ratio (weighted outputs divided by weighted inputs).
-4. **The Constraint:** The fundamental strict constraint of DEA is that if these optimal weights were applied to any other branch in the dataset, no branch could achieve an efficiency score greater than 1.0.
-
-### The Scoring and Classification
-- The final **Efficiency Score** falls strictly between `0.0` and `1.0`.
-- **Efficient (Score ≥ 0.9999):** The branch pushes the maximum possible output for the lowest possible input. It physically sits on the "Efficiency Frontier" and serves as a benchmark for others.
-- **Inefficient (Score < 0.9999):** The branch is mathematically proven to be wasting resources. The model has identified other real-world branches in the dataset that achieved the same or better output using strictly fewer inputs. 
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-red?logo=streamlit)](https://streamlit.io/)
+[![PuLP](https://img.shields.io/badge/PuLP-Linear%20Programming-orange)](https://coin-or.github.io/pulp/)
+[![Plotly](https://img.shields.io/badge/Plotly-Interactive%20Charts-purple?logo=plotly)](https://plotly.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 ---
 
-## 2. Dashboard Interface & Features
+## 📌 Overview
 
-The Streamlit desktop application (`app.py`) transforms these complex mathematical results into an intuitive, multi-tab interface for business analysts and managers. 
+**DecisionLens** is an end-to-end BI solution built for banking operations. It ingests raw branch-level performance data, runs a rigorous mathematical optimization model (DEA), and surfaces the results through an interactive, multi-tab Streamlit dashboard — giving managers and analysts the power to:
 
-### 📊 Tab 1: Overview
-A high-level view of the entire branch network.
-- **Fleet Health Summary:** Global KPI trackers showing network-wide average efficiency, and the exact count of efficient vs. inefficient branches.
-- **Efficiency Leaderboard:** A scalable bar chart indexing the top-performing branches.
-- **Score Distribution:** A histogram showing the frequency of efficiency scores so managers can see if the network is heavily skewed toward inefficiency.
-- **Efficiency Frontier Scatter Plot:** Plots inputs (Staff) against outputs (Deposits). Efficient branches hug the outer "frontier" edge of the graph, visually trapping the inefficient branches behind them.
+- Instantly identify **efficient vs. inefficient** branches
+- Benchmark underperformers against real top-performers in the same network
+- Simulate **"What-If" scenarios** (e.g., *"What if we reduce staff by 10%?"*)
+- Compare and save multiple strategic scenarios for executive review
 
-### 🔬 Tab 2: Branch Analysis
-A focused, deep-dive evaluation of one selected branch.
-- **Deep-Dive Metrics:** Displays the exact efficiency score, network rank, and variances vs the fleet average.
-- **Radar Comparison Chart:** A web-like overlapping visual overlaying the selected branch's attributes against the fleet average and the #1 top-performing branch.
-- **Performance Diagnosis:** Auto-generates flags identifying localized weaknesses, such as a poorer-than-average deposit-to-staff ratio or an inflated cost-to-deposit ratio.
+---
 
-### 🗺️ Tab 3: Geographic Map
-- **Geospatial Plotting:** An interactive map plotting all branches across the United States. Branches are color-coded in a traffic-light scheme (Green for Highly Efficient, Red for Severely Inefficient) allowing executives to instantly spot regional performance trends.
+## 🏗️ Architecture
 
-### 📋 Tab 4: Data Explorer
-- **Interactive Data Grid:** A sortable, formatted table containing the raw performance metrics and calculated status labels for every single branch in the fleet, useful for exporting or deep raw-number auditing.
+```
+bank_dea_dataset.csv
+        │
+        ├──▶ dea_model.py  ──▶  dea_results.csv
+        │         │
+        ├──▶ visualization.py ──┐
+        │                       │
+        ├──▶ simulation.py ─────┼──▶ app.py (Streamlit Dashboard)
+        │                       │
+        └──▶ intelligence.py ───┘
+```
 
-### 🔮 Tab 5: What-If Simulator
-A real-time predictive modeling tool.
-- **Slack Analysis & Recommendations:** Translates mathematical shortfalls into plain-text business directives (e.g., "Reduce Operating Cost by 12%").
-- **Interactive Sliders:** Users can dynamically "lay off staff" or "increase deposit goals" via UI sliders.
-- **Real-Time Recalculation:** Triggers an isolated, micro-DEA linear programming execution that immediately predicts the new simulated efficiency score based on the adjusted slider variables.
+| Module | Role | Phase |
+|---|---|---|
+| `dea_model.py` | CCR Linear Programming Optimization Engine | Phase 2 |
+| `visualization.py` | Plotly Chart & Map Generation | Phase 3 |
+| `app.py` | Streamlit Frontend Dashboard | Phase 4 |
+| `simulation.py` | Slack Analysis & What-If Simulator | Phase 5 |
+| `intelligence.py` | AI Business Intelligence Consultant | Phase 6 |
 
-### 📐 Tab 6: Scenario Comparison
-- **Strategic Memory:** As users test theories in the Simulator, they can save them to the Scenario Store. This tab lines up the saved "What-If" scenarios in a grouped bar chart, allowing management to visually compare original vs. projected efficiency to pick the best real-world intervention strategy.
+---
+
+## ⚙️ How It Works — The DEA Engine
+
+DecisionLens uses the **CCR (Charnes-Cooper-Rhodes) Input-Oriented** DEA model, solved via Linear Programming.
+
+### Inputs & Outputs
+
+| Category | Variables |
+|---|---|
+| **Inputs** (Resources consumed) | Staff Count, Operating Cost |
+| **Outputs** (Results produced) | Deposits 2016, Deposit Growth, Average Deposits |
+
+### Mathematical Process
+
+1. **Normalization** — All input/output columns are normalized so large monetary values don't overshadow smaller integer metrics.
+2. **Per-Branch LP Formulation** — For every branch (Decision-Making Unit / DMU), a targeted linear program is constructed using `PuLP`.
+3. **Weight Optimization** — The solver finds the most favorable weights for that branch's inputs/outputs, maximizing the efficiency ratio (weighted outputs ÷ weighted inputs).
+4. **The DEA Constraint** — If those optimal weights were applied to any other branch, no branch can score above 1.0.
+
+### Scoring & Classification
+
+| Score | Status | Meaning |
+|---|---|---|
+| `≥ 0.9999` | ✅ **Efficient** | On the efficiency frontier; benchmark for others |
+| `< 0.9999` | ❌ **Inefficient** | Mathematically proven resource waste; improvement target |
+
+---
+
+## 🖥️ Dashboard Features
+
+### 📊 Tab 1 — Overview
+- **Fleet Health KPIs:** Network-wide average efficiency, efficient vs. inefficient branch counts
+- **Efficiency Leaderboard:** Ranked bar chart of top-performing branches
+- **Score Distribution:** Histogram showing the network efficiency spread
+- **Efficiency Frontier Scatter Plot:** Inputs vs. outputs, visually showing which branches hug the frontier
+
+### 🔬 Tab 2 — Branch Analysis
+- **Deep-Dive Metrics:** Exact efficiency score, network rank, variance vs. fleet average
+- **Radar Comparison Chart:** Selected branch vs. fleet average vs. #1 top performer
+- **Performance Diagnosis:** Auto-generated flags for localized weaknesses (e.g., poor deposit-to-staff ratio)
+
+### 🗺️ Tab 3 — Geographic Map
+- **Geospatial Plotting:** Interactive US map with color-coded branches
+  - 🟢 Green = Highly Efficient
+  - 🔴 Red = Severely Inefficient
+
+### 📋 Tab 4 — Data Explorer
+- Sortable, filterable data grid with all raw metrics and calculated status labels for every branch
+
+### 🔮 Tab 5 — What-If Simulator
+- **Slack Analysis & Recommendations:** Plain-English business directives (e.g., *"Reduce Operating Cost by 12%"*)
+- **Interactive Sliders:** Dynamically adjust staff, costs, and deposit targets
+- **Real-Time Recalculation:** Triggers a micro-DEA LP execution and instantly predicts the new efficiency score
+
+### 📐 Tab 6 — Scenario Comparison
+- Save multiple "What-If" runs to the Scenario Store
+- Grouped bar chart comparing original vs. projected efficiency across all saved scenarios
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Python 3.9 or higher
+- pip
+
+### Installation
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/hemchudesh12/DecisionLens.git
+cd DecisionLens
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Run the DEA engine to generate results (first time only)
+python dea_model.py
+
+# 4. Launch the dashboard
+streamlit run app.py
+```
+
+The dashboard will open automatically in your browser at `http://localhost:8501`.
+
+---
+
+## 📦 Dependencies
+
+| Package | Purpose |
+|---|---|
+| `streamlit` | Interactive web dashboard framework |
+| `pandas` | Data manipulation and analysis |
+| `numpy` | Numerical computations |
+| `plotly` | Interactive charts and maps |
+| `scipy` | Scientific computing utilities |
+| `pulp` | Linear Programming solver (DEA engine) |
+| `matplotlib` | Supplementary plotting |
+| `seaborn` | Statistical visualizations |
+
+Install all at once:
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## 📁 Project Structure
+
+```
+DecisionLens/
+├── app.py                  # Main Streamlit dashboard (entry point)
+├── dea_model.py            # DEA CCR Linear Programming engine
+├── visualization.py        # Plotly chart & map generation
+├── simulation.py           # What-If simulator & slack analysis
+├── intelligence.py         # AI business intelligence layer
+├── data_preprocessing.py   # Data cleaning & normalization
+├── bank_dea_dataset.csv    # Raw branch performance data
+├── dea_results.csv         # Pre-computed DEA efficiency scores
+├── requirements.txt        # Python dependencies
+├── details.md              # Architecture documentation
+├── working_process.md      # Methodology documentation
+└── README.md               # This file
+```
+
+---
+
+## 📈 Sample Insights Generated
+
+- *"Branch #47 is operating at 72.3% efficiency. Reducing Operating Cost by ₹1.2M would push it above the efficiency frontier."*
+- *"Branches in the Northeast cluster show a consistent pattern of overstaffing relative to deposit output."*
+- *"Scenario B (10% staff reduction + 5% deposit growth target) projects a 14.7% efficiency gain over Scenario A."*
+
+---
+
+## 🧠 Intelligence Layer
+
+The `intelligence.py` module acts as an **AI Business Consultant**, performing:
+
+- **Root Cause Analysis** — Compares an underperforming branch against its top efficient peers
+- **NLP-Style Insight Summaries** — Human-readable explanations of why a branch is underperforming
+- **Sensitivity Analysis** — Recommends the highest ROI interventions (greatest efficiency gain per unit of change)
+
+---
+
+## 🤝 Contributing
+
+Pull requests are welcome. For major changes, please open an issue first to discuss what you'd like to change.
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+## 👤 Author
+
+**hemchudesh12**  
+[GitHub Profile](https://github.com/hemchudesh12)
